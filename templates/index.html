@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0c10;
+            color: #66fcf1;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background-color: #1f2833;
+            color: #c5c6c7;
+            border: 1px solid #45a29e;
+        }
+
+        .leaflet-popup-content a {
+            color: #66fcf1;
+            font-size: 16px;
+        }
+
+        .leaflet-popup-content-wrapper .leaflet-popup-tip-container {
+            visibility: hidden;
+        }
+
+        .leaflet-popup-content {
+            background-color: #1f2833;
+            color: #c5c6c7;
+            border: 1px solid #45a29e;
+            width: 500px;
+            font-size: 18px;
+        }
+
+        .controls {
+            margin: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .switch label {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch label .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .switch label .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            border-radius: 50%;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #66fcf1;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .slider-container input {
+            -webkit-appearance: none;
+            width: 200px;
+            height: 8px;
+            background: #ccc;
+            outline: none;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .slider-container input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #66fcf1;
+            cursor: pointer;
+        }
+
+        .slider-container input::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #66fcf1;
+            cursor: pointer;
+        }
+
+        .leaflet-control-zoom {
+            display: none;
+        }
+
+        .leaflet-control-attribution {
+            display: none;
+        }
+        
+        .leaflet-popup {
+            background-color: #1f2833;
+            color: #c5c6c7;
+            border: 1px solid #45a29e;
+        }
+
+        .marker-depth-0 {
+            width: 25px;
+            height: 25px;
+            z-index: 1000;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #1f2833;
+            color: #c5c6c7;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #45a29e;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .close {
+            color: #66fcf1;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #c5c6c7;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-content a {
+            color: #66fcf1 !important;
+        }
+		.custom-marker {
+    position: relative;
+    width: 25px;
+    height: 25px;
+    animation: zoomIn 0.5s ease-out forwards;
+}
+
+.custom-marker .marker-icon {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: rgba(102, 252, 241, 0.5);
+    animation: radarPulse 1.5s infinite;
+    z-index: 1;
+}
+
+@keyframes zoomIn {
+    0% {
+        transform: scale(0);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes radarPulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="switch">
+            <label>
+                <input type="checkbox" id="lineToggle">
+                <span class="slider"></span>
+            </label>
+            <span>Show Connections</span>
+        </div>
+        <div class="slider-container">
+            <input type="range" id="depthSlider" min="1" max="50" value="10">
+            <span id="depthValue">10</span>
+        </div>
+    </div>
+    <div id="map"></div>
+
+    <!-- Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const map = L.map('map').setView([25, 20], 2.7);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+                maxZoom: 19
+            }).addTo(map);
+
+            let linesLayer = L.layerGroup().addTo(map);
+            let markers = {};
+            let currentMaxDepth = parseInt(document.getElementById('depthSlider').value, 10);
+
+            function getMarkerIcon(depth) {
+                if (depth === 0) {
+                    return `data:image/svg+xml;base64,${btoa(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25">
+                          <circle cx="12.5" cy="12.5" r="10" stroke="black" stroke-width="1" fill="yellow" />
+                          <polygon points="12.5,2 15.5,9 23,9 17,14 19,22 12.5,17 6,22 8,14 2,9 9.5,9" stroke="black" stroke-width="1" fill="gold" />
+                        </svg>
+                    `)}`;
+                }
+                const ratio = Math.min(depth / currentMaxDepth, 1);
+                const red = Math.floor(ratio * 255);
+                const green = Math.floor((1 - ratio) * 255);
+                const color = `rgb(${red}, ${green}, 0)`;
+
+                return `data:image/svg+xml;base64,${btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="25" viewBox="0 0 15 25">
+                      <circle cx="7.5" cy="12.5" r="7" stroke="black" stroke-width="1" fill="${color}" />
+                    </svg>
+                `)}`;
+            }
+function createAnimatedMarker(lat, lon, depth, ip, entries, parentIp) {
+    const marker = L.marker([lat, lon], {
+        title: ip,
+        icon: L.divIcon({
+            className: `custom-marker depth-${depth}`,
+            html: `<div class="marker-icon" style="animation-delay: ${Math.random() * 1}s;"></div>`
+        }),
+        zIndexOffset: depth === 0 ? 1000 : 0 
+    }).addTo(map);
+
+    markers[depth] = markers[depth] || [];
+    markers[depth].push(marker);
+
+    marker.on('mouseover', () => {
+        marker.openPopup();
+    });
+    marker.on('mouseout', () => {
+        setTimeout(() => {
+            if (!map._popup || !map._popup._source || map._popup._source !== marker) {
+                marker.closePopup();
+            }
+        }, 200);
+    });
+
+    marker.bindPopup(`<strong>IP: ${ip}</strong><br>Depth: ${depth}<br>Parent IP: ${parentIp}<br>URLs:<br>${entries.map(entry => {
+        const truncatedTitle = truncateText(entry.title || entry.url, 40);
+        return `<a href="${entry.url}" target="_blank">${truncatedTitle}</a>`;
+    }).join('<br>')}`).on('click', () => {
+        showModal(`<strong>IP: ${ip}</strong><br>Depth: ${depth}<br>Parent IP: ${parentIp}<br>URLs:<br>${entries.map(entry => {
+            const truncatedTitle = truncateText(entry.title || entry.url, 40);
+            return `<a href="${entry.url}" target="_blank">${truncatedTitle}</a>`;
+        }).join('<br>')}`);
+    });
+}
+
+            function truncateText(text, maxLength) {
+                if (text.length > maxLength) {
+                    return text.slice(0, maxLength) + '...';
+                }
+                return text;
+            }
+
+            function drawConnections(clusters) {
+                linesLayer.clearLayers();
+
+                Object.keys(clusters).forEach(ip => {
+                    const entries = clusters[ip];
+                    const lat = entries[0].lat;
+                    const lon = entries[0].lon;
+
+                    if (lat !== null && lon !== null) {
+                        entries.forEach(entry => {
+                            const parentIp = entry.parent_ip;
+                            if (parentIp && clusters[parentIp]) {
+                                const parentLat = clusters[parentIp][0].lat;
+                                const parentLon = clusters[parentIp][0].lon;
+
+                                if (parentLat !== null && parentLon !== null) {
+                                    const latLngs = [
+                                        L.latLng(lat, lon),
+                                        L.latLng(parentLat, parentLon)
+                                    ];
+                                    L.polyline(latLngs, {
+                                        color: `rgba(102, 252, 241, 0.5)`,
+                                        weight: 2
+                                    }).addTo(linesLayer);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            function updateMap() {
+                fetch('/data')
+                    .then(response => response.json())
+                    .then(clusters => {
+                        map.eachLayer(layer => {
+                            if (layer instanceof L.Marker) {
+                                map.removeLayer(layer);
+                            }
+                        });
+
+                        markers = {};
+
+                        Object.keys(clusters).forEach(ip => {
+                            const entries = clusters[ip];
+                            const lat = entries[0].lat;
+                            const lon = entries[0].lon;
+                            const depth = entries[0].depth;
+                            const parentIp = entries[0].parent_ip || 'N/A';
+
+                            if (lat !== null && lon !== null) {
+                                const marker = L.marker([lat, lon], {
+                                    title: ip,
+                                    icon: L.icon({
+                                        iconUrl: getMarkerIcon(depth),
+                                        iconSize: depth === 0 ? [25, 25] : [15, 25],
+                                        iconAnchor: [12, 41],
+                                        popupAnchor: [1, -34],
+                                        shadowSize: [41, 41]
+                                    }),
+                                    zIndexOffset: depth === 0 ? 1000 : 0 
+                                }).addTo(map);
+
+                                markers[depth] = markers[depth] || [];
+                                markers[depth].push(marker);
+
+                                marker.on('mouseover', () => {
+                                    marker.openPopup();
+                                });
+                                marker.on('mouseout', () => {
+                                    setTimeout(() => {
+                                        if (!map._popup || !map._popup._source || map._popup._source !== marker) {
+                                            marker.closePopup();
+                                        }
+                                    }, 200);
+                                });
+
+                                marker.bindPopup(`<strong>IP: ${ip}</strong><br>Depth: ${depth}<br>Parent IP: ${parentIp}<br>URLs:<br>${entries.map(entry => {
+                                    const truncatedTitle = truncateText(entry.title || entry.url, 40);
+                                    return `<a href="${entry.url}" target="_blank">${truncatedTitle}</a>`;
+                                }).join('<br>')}`).on('click', () => {
+                                    showModal(`<strong>IP: ${ip}</strong><br>Depth: ${depth}<br>Parent IP: ${parentIp}<br>URLs:<br>${entries.map(entry => {
+                                        const truncatedTitle = truncateText(entry.title || entry.url, 40);
+                                        return `<a href="${entry.url}" target="_blank">${truncatedTitle}</a>`;
+                                    }).join('<br>')}`);
+                                });
+                            }
+                        });
+
+                        document.getElementById('lineToggle').addEventListener('change', event => {
+                            if (event.target.checked) {
+                                drawConnections(clusters);
+                            } else {
+                                linesLayer.clearLayers();
+                            }
+                        });
+
+                        if (document.getElementById('lineToggle').checked) {
+                            drawConnections(clusters);
+                        }
+                    });
+            }
+
+            document.getElementById('depthSlider').addEventListener('input', event => {
+                currentMaxDepth = parseInt(event.target.value, 15);
+                document.getElementById('depthValue').textContent = currentMaxDepth;
+                updateMap();
+            });
+
+            setInterval(updateMap, 1000);
+
+            const modal = document.getElementById('myModal');
+            const closeModal = document.getElementsByClassName('close')[0];
+
+            function showModal(content) {
+                document.getElementById('modalContent').innerHTML = content;
+                modal.style.display = 'flex';
+            }
+
+            closeModal.onclick = function() {
+                modal.style.display = 'none';
+            }
+
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
