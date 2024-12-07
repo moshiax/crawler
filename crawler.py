@@ -35,8 +35,6 @@ def load_visited():
         pass
     return visited
 
-def valid_url(url):
-    return re.match(r'^https?://', url) is not None
 
 def get_ip(domain):
     try:
@@ -70,11 +68,16 @@ def load_logged_urls():
 logged_urls = load_logged_urls()
 
 loggable_extensions = ['.zip', '.rar', '.tar.gz', '.7z', '.exe', '.msi', '.apk', '.db', '.sql', '.mp4', 'pdf', '.avi', '.mkv']
-excluded_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', 
-                       '.woff', '.woff2', '.ttf', '.eot', 
-                       '.zip', '.rar', '.tar.gz', '.7z', '.exe', '.msi', 
-                       '.apk', '.db', '.sql', '.mp3', '.mp4', '.avi', 
-                       '.mkv', '.iso']
+excluded_extensions = [
+    '.png', '.jpg', '.webp', '.jpeg', '.gif', '.ico', '.svg',
+    '.woff', '.woff2', '.ttf', '.eot', '.db', '.sql', '.mp3',
+    '.iso', '.flv', '.mov', '.wav', '.flac',
+    '.ogg', '.bmp', '.psd', '.ai', '.eps', '.docx', '.xlsx',
+    '.pptx', '.epub', '.mobi', '.chm', '.swf',
+    '.tar', '.gz', '.bz2', '.xz', '.dmg', '.pkg', '.bat',
+    '.msi', '.vhd', '.vmdk', '.ova', '.iso', '.img'
+]
+
 
 def log_excluded_url(url):
     parsed_url = urlparse(url)
@@ -167,16 +170,22 @@ def update_ip_entry(ip, title, url, visited, depth, parent_ip=None):
 def is_valid_domain(domain): return len(domain) < 253 and all(len(label) < 63 for label in domain.split('.'))
 
 def extract_links_from_js(js_content):
-    return re.findall(r'(https?://[^\s\'"<>]+)', js_content, re.IGNORECASE)
+    pattern = r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s\'"]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s\'"]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s\'"]{2,}|www\.[a-zA-Z0-9]+\.[^\s\'"]{2,}|[a-zA-Z0-9][a-zA-Z0-9-]+\.[^\s\'"]{2,})|((?<=href=").*?(?="))'
+    return re.findall(pattern, js_content, re.IGNORECASE)
+    
+    
+def valid_url(url):
+    return re.match(r'^https?://', url) is not None
+
+successful_crawls = 0
 
 async def crawl(session, url, visited, depth=1, max_depth=float('inf'), parent_ip=None):
+    global successful_crawls  
     if depth > max_depth:
         return
     
     if is_excluded_url(url):
         return
-
- #   print(Fore.YELLOW + f"Crawling {url} at depth {depth}")
 
     parsed_url = urlparse(url)
     domain = parsed_url.netloc or parsed_url.path
@@ -207,27 +216,20 @@ async def crawl(session, url, visited, depth=1, max_depth=float('inf'), parent_i
         if ip:
             update_ip_entry(ip, title, full_url, visited, depth, parent_ip)
 
-        tasks = []
+        pattern = r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s\'"]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s\'"]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s\'"]{2,}|www\.[a-zA-Z0-9]+\.[^\s\'"]{2,})|((?<=href=").*?(?="))'
 
-        for link in soup.find_all('a', href=True):
-            new_url = link['href']
+        links = re.findall(pattern, text)
+
+        tasks = []
+        for link in links:
+            new_url = link[0] if link[0] else link[1]
+            new_url = re.sub(r'\);--.*$', '', new_url)
             if not valid_url(new_url):
                 new_url = urljoin(url, new_url)
             if not any(entry['url'] == new_url for entry in visited):
                 tasks.append(crawl(session, new_url, visited, depth + 1, max_depth, ip))
 
-        for tag in soup.find_all('link'):
-            if tag.get('href') and 'stylesheet' in tag.get('rel', []):
-                file_url = urljoin(url, tag['href'])
-                if valid_url(file_url) and not any(entry['url'] == file_url for entry in visited):
-                    tasks.append(crawl(session, file_url, visited, depth + 1, max_depth, ip))
-
-        for script in soup.find_all('script', src=True):
-            script_url = script['src']
-            if not valid_url(script_url):
-                script_url = urljoin(url, script_url)
-            if not any(entry['url'] == script_url for entry in visited):
-                tasks.append(crawl(session, script_url, visited, depth + 1, max_depth, ip))
+        successful_crawls += 1
 
         await asyncio.gather(*tasks)
 
@@ -243,11 +245,13 @@ async def main():
     clear_cache()  
 
     url = "https://" + args.url if not args.url.startswith("http") else args.url
-    max_depth = args.max_depth
+    max_depth = args.max_depth + 1
 
     visited = load_visited()
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=max_connections)) as session:
         await crawl(session, url, visited, max_depth=max_depth)
+
+    print(Fore.CYAN + f"Total successful crawls: {successful_crawls}")
 
 if __name__ == "__main__":
     asyncio.run(main())
