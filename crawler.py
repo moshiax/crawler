@@ -94,7 +94,6 @@ def is_excluded_url(url):
     domain = parsed_url.netloc
     path = parsed_url.path
 
-    # Проверяем на неподдерживаемые схемы
     if ":" in url:
         if parsed_url.scheme and parsed_url.scheme not in ['http', 'https']:
             return True
