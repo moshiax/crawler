@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Files</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        .file-item {
+            margin-bottom: 10px;
+        }
+        .file-item a {
+            text-decoration: none;
+        }
+        .file-item a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Excluded Links</h1>
+        <input class="form-control mb-3" id="filterInput" type="text" placeholder="Filter by extension">
+
+        <div id="fileList">
+            {% for file in files %}
+                <div class="file-item">
+                    <a href="{{ file['url'] }}" class="btn btn-primary" target="_blank">
+                        Download {{ file['extension'] }}: {{ file['url'] }}
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('filterInput').addEventListener('input', function() {
+            var filter = this.value.toLowerCase();
+            var items = document.querySelectorAll('.file-item');
+            items.forEach(function(item) {
+                var text = item.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

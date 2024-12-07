@@ -271,7 +271,7 @@
             let currentMaxDepth = parseInt(document.getElementById('depthSlider').value, 10);
 
             function getMarkerIcon(depth) {
-                if (depth === 0) {
+                if (depth === 1) {
                     return `data:image/svg+xml;base64,${btoa(`
                         <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25">
                           <circle cx="12.5" cy="12.5" r="10" stroke="black" stroke-width="1" fill="yellow" />
@@ -297,7 +297,7 @@ function createAnimatedMarker(lat, lon, depth, ip, entries, parentIp) {
             className: `custom-marker depth-${depth}`,
             html: `<div class="marker-icon" style="animation-delay: ${Math.random() * 1}s;"></div>`
         }),
-        zIndexOffset: depth === 0 ? 1000 : 0 
+        zIndexOffset: depth === 1 ? 1000 : 0 
     }).addTo(map);
 
     markers[depth] = markers[depth] || [];
@@ -387,7 +387,7 @@ function createAnimatedMarker(lat, lon, depth, ip, entries, parentIp) {
                                     title: ip,
                                     icon: L.icon({
                                         iconUrl: getMarkerIcon(depth),
-                                        iconSize: depth === 0 ? [25, 25] : [15, 25],
+                                        iconSize: depth === 1 ? [25, 25] : [15, 25],
                                         iconAnchor: [12, 41],
                                         popupAnchor: [1, -34],
                                         shadowSize: [41, 41]
@@ -441,7 +441,7 @@ function createAnimatedMarker(lat, lon, depth, ip, entries, parentIp) {
                 updateMap();
             });
 
-            setInterval(updateMap, 1000);
+            setInterval(updateMap, 5000);
 
             const modal = document.getElementById('myModal');
             const closeModal = document.getElementsByClassName('close')[0];
@@ -459,6 +459,7 @@ function createAnimatedMarker(lat, lon, depth, ip, entries, parentIp) {
                 if (event.target === modal) {
                     modal.style.display = 'none';
                 }
+		         updateMap();
             }
         });
     </script>
