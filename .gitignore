@@ -1,2 +1,5 @@
 
 visited_links.json
+/build/crawler
+/dist/crawler
+crawler.spec
