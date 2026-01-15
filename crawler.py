@@ -1,4 +1,4 @@
-import aiohttp
+from curl_cffi import requests
 import asyncio
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
@@ -16,13 +16,7 @@ visited_file = "visited_links.json"
 excluded_file = "excluded_links.json"
 
 max_connections = 10
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Referer': 'https://www.google.com/'
-}
+sem = asyncio.Semaphore(max_connections)
 
 def load_visited():
     visited = []
@@ -124,21 +118,25 @@ def clear_cache():
     if os.path.exists(excluded_file):
         os.remove(excluded_file)
 
-async def fetch(session, url):
-    try:
-    #    print(Fore.YELLOW + f"Fetching {url}")
-        async with session.get(url, headers=headers, verify_ssl=False) as response:
-            print(Fore.GREEN + f"Status code for {url}: {response.status}")
-            content_type = response.headers.get('Content-Type', '')
-            if response.status == 200:
-                text = await response.text()
-                return text, str(response.url), content_type
-            else:
-                print(Fore.RED + f"Failed to access {url} with status code {response.status}")
-                return None, None, content_type
-    except Exception as e:
-        print(Fore.RED + f"Error fetching {url}: {e}")
-        return None, None, None
+async def fetch(url):
+    async with sem:
+        #print(Fore.YELLOW + f"Fetching {url}")
+        try:
+            resp = await asyncio.to_thread(
+                requests.get,
+                url,
+                impersonate="chrome",
+                timeout=30
+            )
+
+            print(Fore.GREEN + f"Status code for {url}: {resp.status_code}")
+            content_type = resp.headers.get("Content-Type", "")
+            if resp.status_code == 200:
+                return resp.text, resp.url, content_type
+            return None, None, content_type
+        except Exception as e:
+            print(Fore.RED + f"Error fetching {url}: {e}")
+            return None, None, None
 
 def is_js_file(url): return url.endswith('.js') if url else False
 
@@ -179,7 +177,7 @@ def valid_url(url):
 
 successful_crawls = 0
 
-async def crawl(session, url, visited, depth=1, max_depth=float('inf'), parent_ip=None):
+async def crawl(url, visited, depth=1, max_depth=float('inf'), parent_ip=None):
     global successful_crawls  
     if depth > max_depth:
         return
@@ -199,14 +197,18 @@ async def crawl(session, url, visited, depth=1, max_depth=float('inf'), parent_i
 
         ip = get_ip(domain) or extract_ip_from_url(url)
 
-        text, full_url, content_type = await fetch(session, url)
+        text, full_url, content_type = await fetch(url)
         if text is None:
             print(Fore.RED + f"Failed to fetch {url}. Skipping...")
             return
 
         if is_js_file(url):
             links = extract_links_from_js(text)
-            tasks = [crawl(session, link, visited, depth + 1, max_depth, ip) for link in links if not any(entry['url'] == link for entry in visited)]
+            tasks = [
+                crawl(link, visited, depth + 1, max_depth, ip)
+                for link in links
+                if not any(entry['url'] == link for entry in visited)
+            ]
             await asyncio.gather(*tasks)
             return
 
@@ -227,7 +229,7 @@ async def crawl(session, url, visited, depth=1, max_depth=float('inf'), parent_i
             if not valid_url(new_url):
                 new_url = urljoin(url, new_url)
             if not any(entry['url'] == new_url for entry in visited):
-                tasks.append(crawl(session, new_url, visited, depth + 1, max_depth, ip))
+                tasks.append(crawl(new_url, visited, depth + 1, max_depth, ip))
 
         successful_crawls += 1
 
@@ -248,8 +250,7 @@ async def main():
     max_depth = args.max_depth + 1
 
     visited = load_visited()
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=max_connections)) as session:
-        await crawl(session, url, visited, max_depth=max_depth)
+    await crawl(url, visited, max_depth=max_depth)
 
     print(Fore.CYAN + f"Total successful crawls: {successful_crawls}")
 
